@@ -24,102 +24,204 @@ HISTFILESIZE=2000
 # update the values of LINES and COLUMNS.
 shopt -s checkwinsize
 
-# set variable identifying the chroot you work in (used in the prompt below)
-if [ -z "${debian_chroot:-}" ] && [ -r /etc/debian_chroot ]; then
-    debian_chroot=$(cat /etc/debian_chroot)
-fi
-
-# set a fancy prompt (non-color, unless we know we "want" color)
-case "$TERM" in
-xterm-color | *-256color) color_prompt=yes ;;
-esac
-
-# colors
-black='\e[0;30m'
-red='\e[0;31m'
-green='\e[0;32m'
-yellow='\e[0;33m'
-blue='\e[0;34m'
-magenta='\e[0;35m'
-cyan='\e[0;36m'
-light_gray='\e[0;37m'
-dark_gray='\e[0;90m'
-bright_red='\e[0;91m'
-bright_green='\e[0;92m'
-bright_yellow='\e[0;93m'
-bright_blue='\e[0;94m'
-bright_magenta='\e[0;95m'
-bright_cyan='\e[0;96m'
-white='\e[0;97m'
-
-on_black='\e[40m'
-on_red='\e[41m'
-on_green='\e[42m'
-on_yellow='\e[43m'
-on_blue='\e[44m'
-on_purple='\e[45m'
-on_cyan='\e[46m'
-on_white='\e[47m'
-
-# color reset
-NC="\e[m"
-
-# uncomment for a colored prompt, if the terminal has the capability; turned
-# off by default to not distract the user: the focus in a terminal window
-# should be on the output of commands, not on the prompt
-force_color_prompt=yes
-
-if [ -n "$force_color_prompt" ]; then
-    if [ -x /usr/bin/tput ] && tput setaf 1 >&/dev/null; then
-        # We have color support; assume it's compliant with Ecma-48
-        # (ISO/IEC-6429). (Lack of such support is extremely rare, and such
-        # a case would tend to support setf rather than setaf.)
-        color_prompt=yes
-    else
-        color_prompt=
-    fi
-fi
-
-# checking if you are a root user
-if [[ "$(whoami)" == "root" ]]; then
-    user_color=${bright_red}
-    user_symbol="#"
-else
-    user_color=${bright_green}
-    user_symbol="$"
-fi
-
 # prompt customization
-git_info() {
-    branch_name=$(git branch 2>/dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/\1/')
-    if [[ -z "$branch_name" ]]; then
-        return
+CLR_GRAY=$(tput setaf 8)
+CLR_RED=$(tput setaf 9)
+CLR_GREEN=$(tput setaf 10)
+CLR_YELLOW=$(tput setaf 11)
+CLR_BLUE=$(tput setaf 12)
+CLR_PURPLE=$(tput setaf 13)
+CLR_CYAN=$(tput setaf 14)
+CLR_WHITE=$(tput setaf 15)
+
+CLR_RESET=$(tput sgr0)
+STYLE_BOLD=$(tput bold)
+
+function onPrompt()
+{
+    prompt_storeResult
+    prompt_calculateElapsedTime
+    if [[ $(prompt_useColors) == true ]]; then
+        prompt_setDetailedPrompt
+        # prompt_setSimplifiedPrompt
+        # prompt_setBasicPrompt
+    else
+        prompt_setBasicPrompt
     fi
-    echo -e "on ${bright_magenta}${branch_name}${NC}"
+
 }
 
-if [ "$color_prompt" = yes ]; then
-    prefix="${debian_chroot:+($debian_chroot)}"
-    user="\[${user_color}\]\u\[${NC}\]"
-    host="\[${bright_yellow}\]\h\[${NC}\]"
-    dir="\[${bright_blue}\]\w\[${NC}\]"
-    prompt="\n\[${user_color}\]└── ${NC}\]${user_symbol} "
+function prompt_storeResult()
+{
+    prompt_previousResult=$?
+}
 
-    PS1="${prefix}${user} at ${host} in ${dir} \$(git_info) ${prompt}"
-else
-    PS1="${debian_chroot:+($debian_chroot)}\u@\h:\w${user_symbol} "
-fi
-unset color_prompt force_color_prompt
+function prompt_storeStartTime()
+{
+    [[ $prompt_startTime ]] || prompt_startTime=$SECONDS
+}
+
+function prompt_calculateElapsedTime()
+{
+    if [[ $prompt_startTime ]]; then
+        prompt_elapsedTime=$((SECONDS - prompt_startTime))
+        unset prompt_startTime
+    else
+        prompt_elapsedTime=0
+    fi
+}
+
+function prompt_printElapsedTime()
+{
+    if [[ $prompt_elapsedTime -ge 0 ]]; then
+        if [[ $prompt_elapsedTime -lt 60 ]]; then
+            echo -n "$(date --utc --date=@$prompt_elapsedTime +'%ss')"
+        elif [[ $prompt_elapsedTime -lt 3600 ]]; then
+            echo -n "$(date --utc --date=@$prompt_elapsedTime +'%-Mm %-Ss')"
+        elif [[ $prompt_elapsedTime -lt 86400 ]]; then
+            echo -n "$(date --utc --date=@$prompt_elapsedTime +'%-Hh %-Mm %-Ss')"
+        else
+            echo -n "$(date --utc --date=@$prompt_elapsedTime +'%ss')"
+        fi
+    else
+        echo -n "--"
+    fi
+}
+
+function prompt_useColors()
+{
+    local force_color_prompt=true
+    local color_prompt=false
+
+    # set a fancy prompt (non-color, unless we know we "want" color)
+    case "$TERM" in
+    xterm-color | *-256color) color_prompt=true ;;
+    esac
+
+    if [[ "$force_color_prompt" == true ]]; then
+        if [ -x /usr/bin/tput ] && tput setaf 1 >&/dev/null; then
+            # We have color support; assume it's compliant with Ecma-48
+            # (ISO/IEC-6429). (Lack of such support is extremely rare, and such
+            # a case would tend to support setf rather than setaf.)
+            color_prompt=true
+        else
+            color_prompt=false
+        fi
+    fi
+
+    echo $color_prompt
+}
+
+function prompt_printHost()
+{
+    local host=$(uname -n)
+    echo -n "${host%%.*}"
+}
+
+function prompt_printCurrentDir()
+{
+    if [[ $PWD == $HOME* ]]; then
+        echo -n "~${PWD#$HOME}"
+    else
+        echo -n "$PWD"
+    fi
+}
+
+function prompt_printRightAlignedInfo()
+{
+    local text=""
+    # if [[ -n $BUILD ]]; then
+    #     text+=" BUILD=${BUILD}"
+    # fi
+    # text+=", KERNEL=$(uname -r)"
+    text+=" $(date +'%H:%M:%S')"
+
+    local term_width=$(tput cols)
+    printf '%*s\r' $term_width "${text}"
+}
+
+function prompt_printGitDetails()
+{
+    GIT_PS1_SHOWDIRTYSTATE=1
+    GIT_PS1_SHOWUNTRACKEDFILES=1
+    __git_ps1 | sed -r "s@ \((\S+)(( )(\*)?(\+)?(%)?)?( (.*))?\)@\1 ${CLR_RESET}\4\5\6[\8]@g;s@\[\]@@g"
+}
+
+function prompt_printVirtualEnv()
+{
+    if [[ -n $VIRTUAL_ENV ]]; then
+        echo -n "($(basename $VIRTUAL_ENV)) "
+    fi
+}
+
+function prompt_printUserSymbol()
+{
+    if [[ "$(whoami)" == "root" ]]; then
+        echo -n "#"
+    else
+        echo -n "$"
+    fi
+}
+
+function prompt_setDetailedPrompt()
+{
+    export PS1
+
+    PS1="${CLR_GRAY}$(prompt_printRightAlignedInfo)${CLR_RESET}┌"
+    [[ $prompt_previousResult == 0 ]] && PS1+="" || PS1+="${CLR_RED}"
+    PS1+=" $(prompt_printElapsedTime) "
+
+    PS1+="\n${CLR_RESET}│ "
+    PS1+="${CLR_GREEN}$(whoami)"
+    PS1+="${CLR_WHITE} at "
+    PS1+="${CLR_YELLOW}$(prompt_printHost)"
+    PS1+="${CLR_WHITE} in "
+    PS1+="${CLR_BLUE}$(prompt_printCurrentDir)"
+    if git rev-parse --is-inside-git-dir &> /dev/null; then
+        PS1+="${CLR_WHITE} on "
+        PS1+="${CLR_PURPLE}${STYLE_BOLD}$(prompt_printGitDetails)"
+    fi
+    if [[ -f /.dockerenv || -f /run/.containerenv ]]; then
+        PS1+="${CLR_YELLOW}${STYLE_BOLD} "
+    fi
+    PS1+="${CLR_RESET}\001\e[K\002\n└─── $(prompt_printVirtualEnv)$(prompt_printUserSymbol) "
+}
+
+function prompt_setSimplifiedPrompt()
+{
+    export PS1
+
+    PS1="${CLR_RESET}"
+    PS1+="${CLR_GREEN}$(whoami)"
+    PS1+="${CLR_WHITE} at "
+    PS1+="${CLR_YELLOW}$(prompt_printHost)"
+    PS1+="${CLR_WHITE} in "
+    PS1+="${CLR_BLUE}$(prompt_printCurrentDir)"
+    if git rev-parse --is-inside-git-dir &> /dev/null; then
+        PS1+="${CLR_WHITE} on "
+        PS1+="${CLR_PURPLE}${STYLE_BOLD}$(prompt_printGitDetails)"
+    fi
+    PS1+="${CLR_RESET}\001\e[K\002\n└── $(prompt_printVirtualEnv)$(prompt_printUserSymbol) "
+}
+
+function prompt_setBasicPrompt()
+{
+    export PS1
+    PS1="\u@\h: \w\a \$ "
+}
+
+PROMPT_COMMAND="onPrompt"
+trap prompt_storeStartTime DEBUG
 
 # If this is an xterm set the title to user@host:dir
 case "$TERM" in
 xterm* | rxvt*)
-    PS1="\[\e]0;${debian_chroot:+($debian_chroot)}\u@\h: \w\a\]$PS1"
+    PS1="\[\e]0;\u@\h: \w\a\]$PS1"
     ;;
 *) ;;
 esac
 
-# enable color support of ls and also add handy aliases
+# enable color support of common utilities
 if [ -x /usr/bin/dircolors ]; then
     test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
 
@@ -127,6 +229,7 @@ if [ -x /usr/bin/dircolors ]; then
     alias grep='grep --color=auto'
     alias fgrep='fgrep --color=auto'
     alias egrep='egrep --color=auto'
+    alias diff='diff --color=auto'
 
 fi
 
