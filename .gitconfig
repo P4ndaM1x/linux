@@ -9,12 +9,13 @@
     default = current
 
 [alias]
-    aliases = ! git config --list | awk '/alias/{ print $1 }' | sed -e 's/alias\\.//' -e 's/=.*//'
+    aliases = !git config --list | sed -n 's/^alias\\.\\([^=]*\\)=\\(.*\\)/\\1\t\\2/p' | sed 's/^\\(.\\{80\\}\\).*/\\1.../'
     lg = log --oneline
     hist = log --oneline --graph --decorate --all --color=auto
     stat = status --short --branch
     save = stash --all
-    undo = "!sh -c 'read -p \"Choose reset type --soft or --hard (s/h): \" answer; if [ \"$answer\" = \"s\" ]; then git reset --soft HEAD^; elif [ \"$answer\" = \"h\" ]; then git reset --hard HEAD^; else echo \"Nothing happened\"; fi'"
+    sed = !git grep -z --full-name -l '.' | xargs -0 sed -i -e
+    rst = "!sh -c 'read -p \"Choose reset type --soft or --hard (s/h): \" answer; if [ \"$answer\" = \"s\" ]; then git reset --soft HEAD^; elif [ \"$answer\" = \"h\" ]; then git reset --hard HEAD^; else echo \"Nothing happened\"; fi'"
 
 [maintenance]
     strategy = incremental

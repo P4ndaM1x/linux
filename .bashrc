@@ -24,6 +24,17 @@ HISTFILESIZE=2000
 # update the values of LINES and COLUMNS.
 shopt -s checkwinsize
  
+# enable git prompt and completion
+if [ ! -f ~/.git-prompt.sh ]; then
+    wget -O ~/.git-prompt.sh https://raw.githubusercontent.com/git/git/refs/heads/master/contrib/completion/git-prompt.sh
+fi
+source ~/.git-prompt.sh
+ 
+if [ ! -f ~/.git-completion.bash ]; then
+    wget -O ~/.git-completion.bash https://raw.githubusercontent.com/git/git/refs/heads/master/contrib/completion/git-completion.bash
+fi
+source ~/.git-completion.bash
+ 
 # prompt customization
 CLR_GRAY="\001\e[0;90m\002"
 CLR_RED="\001\e[0;91m\002"
